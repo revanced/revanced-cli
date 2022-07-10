@@ -124,20 +124,31 @@ internal object MainCommand : Runnable {
         if (args.uninstall != null) {
             // temporarily get package name using Patcher method
             // fix: abstract options in patcher
-            val patcher = app.revanced.patcher.Patcher(
-                PatcherOptions(
-                    File(args.uninstall!!),
-                    "uninstaller-cache",
-                    false
+            val adb: Adb?
+            if (File(args.uninstall!!).exists()){
+                val patcher = app.revanced.patcher.Patcher(
+                    PatcherOptions(
+                        File(args.uninstall!!),
+                        "uninstaller-cache",
+                        false
+                    )
                 )
-            )
-            File("uninstaller-cache").deleteRecursively()
 
-            val adb: Adb? = args.deploy?.let {
-                Adb(File("placeholder_file"), patcher.data.packageMetadata.packageName, args.deploy!!, false)
+                File("uninstaller-cache").deleteRecursively()
+
+                adb = args.deploy?.let {
+                    Adb(File("placeholder_file"), patcher.data.packageMetadata.packageName, args.deploy!!, false)
+                }
+                adb?.uninstall()
+
+                return
             }
-            adb?.uninstall()
 
+            adb = args.deploy?.let {
+                Adb(File("placeholder_file"), args.uninstall!!, args.deploy!!, false)
+            }
+
+            adb?.uninstall()
             return
         }
 
