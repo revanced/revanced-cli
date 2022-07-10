@@ -33,11 +33,8 @@ internal object MainCommand : Runnable {
     lateinit var args: Args
 
     class Args {
-        @Option(names = ["-a", "--apk"], description = ["Input file to be patched"], required = true)
-        lateinit var inputFile: File
-
         @Option(names = ["--uninstall"], description = ["Uninstall the mount variant"])
-        var uninstall: Boolean = false
+        lateinit var uninstall: File
 
         @Option(names = ["-d", "--deploy-on"], description = ["If specified, deploy to adb device with given name"])
         var deploy: String? = null
@@ -72,6 +69,9 @@ internal object MainCommand : Runnable {
     }
 
     class PatchingArgs {
+        @Option(names = ["-a", "--apk"], description = ["Input file to be patched"], required = true)
+        lateinit var inputFile: File
+
         @Option(names = ["-o", "--out"], description = ["Output file path"], required = true)
         lateinit var outputPath: String
 
@@ -121,7 +121,10 @@ internal object MainCommand : Runnable {
             return
         }
 
-        if (args.uninstall) {
+        val _args = args
+        val args = args.sArgs?.pArgs ?: return
+
+        if (_args.uninstall.exists()) {
             // temporarily get package name using Patcher method
             // fix: abstract options in patcher
             val patcher = app.revanced.patcher.Patcher(
@@ -133,20 +136,17 @@ internal object MainCommand : Runnable {
             )
             File("uninstaller-cache").deleteRecursively()
 
-            val adb: Adb? = args.deploy?.let {
-                Adb(File("placeholder_file"), patcher.data.packageMetadata.packageName, args.deploy!!, false)
+            val adb: Adb? = _args.deploy?.let {
+                Adb(File("placeholder_file"), patcher.data.packageMetadata.packageName, _args.deploy!!, false)
             }
             adb?.uninstall()
 
             return
         }
 
-        val _args = args
-        val args = args.sArgs?.pArgs ?: return
-
         val patcher = app.revanced.patcher.Patcher(
             PatcherOptions(
-                _args.inputFile,
+                args.inputFile,
                 args.cacheDirectory,
                 !args.disableResourcePatching,
                 logger = PatcherLogger
