@@ -33,11 +33,8 @@ internal object MainCommand : Runnable {
     lateinit var args: Args
 
     class Args {
-        @Option(names = ["-a", "--apk"], description = ["Input file to be patched"], required = true)
-        lateinit var inputFile: File
-
         @Option(names = ["--uninstall"], description = ["Uninstall the mount variant"])
-        var uninstall: Boolean = false
+        var uninstall: String? = null
 
         @Option(names = ["-d", "--deploy-on"], description = ["If specified, deploy to adb device with given name"])
         var deploy: String? = null
@@ -72,6 +69,9 @@ internal object MainCommand : Runnable {
     }
 
     class PatchingArgs {
+        @Option(names = ["-a", "--apk"], description = ["Input file to be patched"], required = true)
+        lateinit var inputFile: File
+
         @Option(names = ["-o", "--out"], description = ["Output file path"], required = true)
         lateinit var outputPath: String
 
@@ -124,23 +124,34 @@ internal object MainCommand : Runnable {
             return
         }
 
-        if (args.uninstall) {
+        if (args.uninstall != null) {
             // temporarily get package name using Patcher method
             // fix: abstract options in patcher
-            val patcher = app.revanced.patcher.Patcher(
-                PatcherOptions(
-                    args.inputFile,
-                    "uninstaller-cache",
-                    false
+            val adb: Adb?
+            if (File(args.uninstall!!).exists()){
+                val patcher = app.revanced.patcher.Patcher(
+                    PatcherOptions(
+                        File(args.uninstall!!),
+                        "uninstaller-cache",
+                        false
+                    )
                 )
-            )
-            File("uninstaller-cache").deleteRecursively()
 
-            val adb: Adb? = args.deploy?.let {
-                Adb(File("placeholder_file"), patcher.data.packageMetadata.packageName, args.deploy!!, false)
+                File("uninstaller-cache").deleteRecursively()
+
+                adb = args.deploy?.let {
+                    Adb(File("placeholder_file"), patcher.data.packageMetadata.packageName, args.deploy!!, false)
+                }
+                adb?.uninstall()
+
+                return
             }
-            adb?.uninstall()
 
+            adb = args.deploy?.let {
+                Adb(File("placeholder_file"), args.uninstall!!, args.deploy!!, false)
+            }
+
+            adb?.uninstall()
             return
         }
 
@@ -149,7 +160,7 @@ internal object MainCommand : Runnable {
 
         val patcher = app.revanced.patcher.Patcher(
             PatcherOptions(
-                _args.inputFile,
+                args.inputFile,
                 args.cacheDirectory,
                 !args.disableResourcePatching,
                 args.aaptPath,
